@@ -1,0 +1,92 @@
+local miny = 9000
+local maxy = 9000
+
+local base = math.ceil(miny / 1) * 1
+
+local np_terflat = {
+	offset = 0,
+	scale = 1,
+	spread = {x=31000, y=1, z=31000},
+	seed = 1,
+	octaves = 1,
+	persist = 0.5
+}
+
+-- Stuff
+local nobj_ter = nil
+local nobj_terflat = nil
+local nobj_dec = nil
+local nobj_cave = nil
+local nbuf_ter = {}
+local nbuf_terflat = {}
+local nbuf_dec = {}
+local nbuf_cave = {}
+local dbuf = {}
+local p2dbuf = {}
+local heightmap = {}
+local times = {}
+
+-- On generated function
+minetest.register_on_generated(function(minp, maxp, seed)
+	if minp.y < miny or minp.y > maxy then
+		return
+	end
+
+	local t1 = os.clock()
+	local x1 = maxp.x
+	local y1 = maxp.y
+	local z1 = maxp.z
+	local x0 = minp.x
+	local y0 = minp.y
+	local z0 = minp.z
+
+	local vm, emin, emax = minetest.get_mapgen_object("voxelmanip")
+	local area = VoxelArea:new{MinEdge=emin, MaxEdge=emax}
+	local data = vm:get_data(dbuf)
+	local p2data = vm:get_param2_data(p2dbuf)
+
+	local c_barrier = minetest.get_content_id("gallifrey:realm_barrier")
+
+	local sidelen = x1 - x0 + 1
+	local chulens = {x=sidelen, y=sidelen, z=sidelen}
+	local minposxz = {x=x0, y=z0}
+	local minposxyz = {x=x0, y=y0, z=z0}
+	local border_amp = 128
+
+	nobj_ter = nobj_ter or minetest.get_perlin_map(np_ter, chulens)
+	nobj_terflat = nobj_terflat or minetest.get_perlin_map(np_terflat, chulens)
+	nobj_dec = nobj_dec or minetest.get_perlin_map(np_dec, chulens)
+	nobj_cave = nobj_cave or minetest.get_perlin_map(np_cave, chulens)
+
+	local nvals_ter = nobj_ter:get2dMap_flat(minposxz, nbuf_ter)
+	local nvals_terflat = nobj_terflat:get2dMap_flat(minposxz, nbuf_terflat)
+	local nvals_dec = nobj_dec:get2dMap_flat(minposxz, nbuf_dec)
+	local nvals_cave = nobj_cave:get3dMap_flat(minposxyz, nbuf_cave)
+
+	local offset = 0
+	local nixyz = 1
+	local nixz = 1
+	local schems = {}
+	local mid = (miny + maxy) / 2
+
+		for x = x0, x1 do -- for each column do
+			local noise_1 = nvals_dec[nixz]
+			for y = y1, y0, -1 do -- working down each column for each node do
+				local vi = area:index(x, y, z)
+				local nodid = data[vi]
+				local viuu = area:index(x, y - 1, z)
+				local nodiduu = data[viuu]
+				local via = area:index(x, y + 1, z)
+				local nodida = data[via]
+				if y == 9000 then
+					data[vi] = c_barrier
+					end
+				end
+			end
+		nixz = nixz + 1 
+		end)
+--	end
+	vm:update_liquids()
+	vm:write_to_map(data)
+	local chugent = math.ceil((os.clock() - t1) * 1000)
+	print(chugent)
